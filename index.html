@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Darshan Gowda M — Playable Portfolio</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --sky: #5C94FC; --sky-dark: #2B5FCC; --green: #00A800; --green-dark: #006800;
+    --brick: #C84B00; --gold: #F8B800; --gold-dark: #C88000; --mario-red: #E40000;
+    --ground: #E8A040; --ground-dark: #B86820; --text-dark: #1a1a2e;
+  }
+  html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #000; -webkit-tap-highlight-color: transparent; user-select: none; touch-action: none; }
+  .pixel { font-family: 'Press Start 2P', monospace; }
+  #game-wrap { position: fixed; inset: 0; background: var(--sky); overflow: hidden; }
+  #game-canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+  /* gesture zones (mobile) */
+  #gesture-layer { position: fixed; inset: 0; z-index: 30; display: none; }
+  #gesture-layer.active { display: block; }
+  .gzone { position: absolute; top: 0; bottom: 0; width: 50%; }
+  #gzone-left { left: 0; }
+  #gzone-right { right: 0; }
+  .gzone-hint { position: absolute; bottom: 80px; font-family: 'Press Start 2P', monospace; font-size: 9px; color: rgba(255,255,255,0.5); text-shadow: 1px 1px 0 #000; pointer-events: none; transition: opacity 0.4s; }
+  #gzone-left .gzone-hint { left: 24px; }
+  #gzone-right .gzone-hint { right: 24px; text-align: right; }
+  .gzone.touching { background: radial-gradient(circle at center, rgba(248,184,0,0.12), transparent 70%); }
+
+  #hud { position: fixed; top: 0; left: 0; right: 0; z-index: 50; display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; pointer-events: none; }
+  .hud-group { font-family: 'Press Start 2P', monospace; color: #fff; font-size: clamp(8px, 1.6vw, 13px); text-shadow: 2px 2px 0 #000; display: flex; gap: clamp(12px, 3vw, 28px); align-items: center; }
+  .hud-item { display: flex; flex-direction: column; gap: 4px; }
+  .hud-label { font-size: clamp(6px, 1.1vw, 9px); color: var(--gold); }
+  .hud-value { font-size: clamp(9px, 1.7vw, 14px); }
+
+  /* sound toggle button (in game) */
+  #sound-toggle { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 55; font-family: 'Press Start 2P', monospace; font-size: 9px; background: rgba(10,10,26,0.75); color: var(--gold); border: 2px solid var(--gold); padding: 8px 12px; cursor: pointer; pointer-events: auto; display: none; align-items: center; gap: 6px; }
+  #sound-toggle.show { display: flex; }
+  #sound-toggle:hover { background: var(--gold); color: #000; }
+
+  #intro { position: fixed; inset: 0; z-index: 100; background: rgba(10,10,26,0.94); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 22px; transition: opacity 0.5s; overflow-y: auto; }
+  #intro.hidden { opacity: 0; pointer-events: none; }
+  .intro-title { font-family: 'Press Start 2P', monospace; font-size: clamp(16px, 5vw, 42px); color: var(--gold); line-height: 1.4; text-shadow: 4px 4px 0 var(--gold-dark); letter-spacing: 2px; }
+  .intro-title .red { color: var(--mario-red); }
+  .intro-sub { font-family: 'Press Start 2P', monospace; font-size: clamp(8px, 1.8vw, 13px); color: #fff; line-height: 1.8; max-width: 560px; }
+  .controls-box { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; max-width: 600px; }
+  .control-hint { font-family: 'Press Start 2P', monospace; font-size: clamp(6px, 1.3vw, 10px); color: #fff; border: 3px solid var(--gold); padding: 12px 16px; display: flex; align-items: center; gap: 10px; line-height: 1.5; }
+  .control-hint.mobile-only { display: none; }
+  @media (max-width: 900px), (pointer: coarse) {
+    .control-hint.desktop-only { display: none; }
+    .control-hint.mobile-only { display: flex; }
+  }
+  .key { background: var(--gold); color: #000; padding: 4px 8px; border-radius: 4px; font-size: clamp(6px, 1.2vw, 9px); }
+  .sound-pref { display: flex; align-items: center; gap: 14px; font-family: 'Press Start 2P', monospace; font-size: clamp(7px, 1.5vw, 11px); color: #fff; }
+  .toggle-switch { width: 64px; height: 30px; background: #333; border: 3px solid var(--gold); border-radius: 16px; position: relative; cursor: pointer; transition: background 0.2s; }
+  .toggle-switch.on { background: var(--green); }
+  .toggle-knob { position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; background: var(--gold); border-radius: 50%; transition: left 0.2s; }
+  .toggle-switch.on .toggle-knob { left: 36px; }
+  .start-btn { font-family: 'Press Start 2P', monospace; font-size: clamp(10px, 2.5vw, 18px); background: var(--mario-red); color: #fff; border: 4px solid #000; padding: 18px 36px; cursor: pointer; box-shadow: 6px 6px 0 #000; transition: transform 0.1s, box-shadow 0.1s; letter-spacing: 2px; animation: pulse-btn 1.5s ease-in-out infinite; }
+  .start-btn:hover { background: #ff2020; }
+  .start-btn:active { transform: translate(3px, 3px); box-shadow: 3px 3px 0 #000; }
+  @keyframes pulse-btn { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+
+  #modal-overlay { position: fixed; inset: 0; z-index: 200; background: rgba(10,10,26,0.92); display: none; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+  #modal-overlay.active { display: flex; animation: modal-in 0.3s ease; }
+  @keyframes modal-in { from { opacity: 0; } to { opacity: 1; } }
+  .modal-box { background: #fff; border: 6px solid #000; box-shadow: 0 0 0 4px var(--gold), 12px 12px 0 rgba(0,0,0,0.5); max-width: 760px; width: 100%; max-height: 86vh; overflow-y: auto; position: relative; margin: auto; }
+  .modal-header { background: #0a0a1a; padding: 20px 24px; border-bottom: 4px solid var(--gold); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 2; }
+  .modal-world { font-family: 'Press Start 2P', monospace; font-size: clamp(7px, 1.5vw, 11px); color: var(--gold); }
+  .modal-world .red { color: var(--mario-red); }
+  .modal-title { font-family: 'Press Start 2P', monospace; font-size: clamp(11px, 2.5vw, 18px); color: #fff; margin-top: 6px; letter-spacing: 1px; }
+  .modal-close { font-family: 'Press Start 2P', monospace; font-size: clamp(8px, 1.6vw, 12px); background: var(--mario-red); color: #fff; border: 3px solid #fff; padding: 10px 14px; cursor: pointer; flex-shrink: 0; margin-left: 16px; }
+  .modal-close:hover { background: #ff2020; }
+  .modal-body { padding: clamp(20px, 4vw, 36px); }
+  .m-intro { font-size: clamp(13px, 2vw, 16px); color: #333; line-height: 1.8; margin-bottom: 24px; }
+  .m-card { border: 3px solid #000; margin-bottom: 18px; overflow: hidden; box-shadow: 4px 4px 0 rgba(0,0,0,0.2); }
+  .m-card-head { padding: 12px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+  .m-card-title { font-family: 'Press Start 2P', monospace; font-size: clamp(7px, 1.5vw, 11px); color: #fff; line-height: 1.5; }
+  .m-card-date { font-family: 'Press Start 2P', monospace; font-size: clamp(5px, 1vw, 8px); background: var(--gold); color: #000; padding: 4px 8px; border: 2px solid #000; white-space: nowrap; }
+  .m-card-body { padding: 16px; background: #fff; }
+  .m-card-company { font-size: clamp(12px, 2vw, 15px); font-weight: 600; color: var(--green-dark); margin-bottom: 12px; }
+  .m-list { list-style: none; display: grid; gap: 9px; }
+  .m-list li { font-size: clamp(11px, 1.7vw, 14px); color: #333; line-height: 1.65; padding-left: 20px; position: relative; }
+  .m-list li::before { content: '\25B6'; position: absolute; left: 0; top: 3px; color: var(--green); font-size: 9px; }
+  .m-tech { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .m-tech span { font-family: 'Press Start 2P', monospace; font-size: clamp(5px, 0.9vw, 7px); padding: 4px 8px; border: 2px solid var(--brick); color: var(--brick); letter-spacing: 0.3px; }
+  .m-impact { display: inline-flex; align-items: center; gap: 6px; background: var(--gold); border: 2px solid #000; padding: 5px 10px; font-family: 'Press Start 2P', monospace; font-size: clamp(5px, 0.9vw, 7px); color: #000; margin-top: 12px; }
+  .m-skills { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px,100%),1fr)); gap: 14px; }
+  .m-skill-cat { border: 3px solid #000; overflow: hidden; }
+  .m-skill-cat-head { padding: 10px 14px; font-family: 'Press Start 2P', monospace; font-size: clamp(7px, 1.4vw, 10px); color: #fff; display: flex; align-items: center; gap: 8px; }
+  .m-skill-cat-body { padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .m-skill-tag { font-family: 'Press Start 2P', monospace; font-size: clamp(5px, 1vw, 8px); padding: 5px 8px; border: 2px solid currentColor; }
+  .m-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 12px; margin-top: 20px; }
+  .m-meta-box { background: #0a0a1a; border: 3px solid var(--gold); padding: 12px; }
+  .m-meta-label { font-family: 'Press Start 2P', monospace; font-size: clamp(5px, 1vw, 7px); color: var(--gold); margin-bottom: 6px; }
+  .m-meta-val { font-size: clamp(11px, 1.7vw, 14px); color: #fff; font-weight: 500; }
+  .m-contact { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; }
+  .m-contact a { font-family: 'Press Start 2P', monospace; font-size: clamp(7px, 1.4vw, 10px); color: #fff; background: #0a0a1a; border: 3px solid var(--gold); padding: 14px 18px; text-decoration: none; box-shadow: 4px 4px 0 var(--gold-dark); transition: transform 0.12s, box-shadow 0.12s, background 0.12s, color 0.12s; display: inline-flex; align-items: center; gap: 8px; }
+  .m-contact a:hover { background: var(--gold); color: #000; transform: translate(-2px,-2px); box-shadow: 6px 6px 0 var(--gold-dark); }
+
+  #hint-toast { position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%) translateY(20px); z-index: 40; background: rgba(10,10,26,0.9); border: 3px solid var(--gold); padding: 12px 20px; font-family: 'Press Start 2P', monospace; font-size: clamp(7px, 1.4vw, 10px); color: #fff; opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none; white-space: nowrap; text-align: center; }
+  #hint-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  @media (max-width: 768px) { #hint-toast { bottom: 130px; font-size: 8px; } }
+  #restart-hint { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 40; font-family: 'Press Start 2P', monospace; font-size: clamp(5px, 1vw, 8px); color: rgba(255,255,255,0.6); text-shadow: 1px 1px 0 #000; pointer-events: none; }
+  @media (max-width: 900px), (pointer: coarse) { #restart-hint { display: none; } }
+
+  /* WIN SCREEN */
+  #win-screen { position: fixed; inset: 0; z-index: 300; background: rgba(10,10,26,0.96); display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 20px; }
+  #win-screen.active { display: flex; animation: modal-in 0.5s ease; }
+  .win-stars { font-size: clamp(28px, 8vw, 60px); letter-spacing: 8px; animation: star-pop 1.2s ease infinite; }
+  @keyframes star-pop { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+  .win-title { font-family: 'Press Start 2P', monospace; font-size: clamp(16px, 5vw, 40px); color: var(--gold); line-height: 1.4; text-shadow: 4px 4px 0 var(--gold-dark); }
+  .win-title .red { color: var(--mario-red); }
+  .win-sub { font-family: 'Press Start 2P', monospace; font-size: clamp(8px, 1.8vw, 13px); color: #fff; line-height: 1.9; max-width: 520px; }
+  .win-stats { display: flex; gap: 28px; flex-wrap: wrap; justify-content: center; margin: 8px 0; }
+  .win-stat { font-family: 'Press Start 2P', monospace; }
+  .win-stat-num { font-size: clamp(18px, 4vw, 30px); color: var(--gold); }
+  .win-stat-label { font-size: clamp(6px, 1.2vw, 9px); color: rgba(255,255,255,0.7); margin-top: 8px; }
+  .win-btns { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+  .win-btn { font-family: 'Press Start 2P', monospace; font-size: clamp(8px, 1.6vw, 11px); padding: 14px 22px; border: 3px solid #000; cursor: pointer; box-shadow: 4px 4px 0 #000; transition: transform 0.1s, box-shadow 0.1s; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  .win-btn:active { transform: translate(2px,2px); box-shadow: 2px 2px 0 #000; }
+  .win-btn.gold { background: var(--gold); color: #000; }
+  .win-btn.red { background: var(--mario-red); color: #fff; }
+  .win-btn.green { background: var(--green); color: #fff; }
+</style>
+</head>
+<body>
+<div id="game-wrap"><canvas id="game-canvas"></canvas></div>
+
+<!-- gesture zones for mobile -->
+<div id="gesture-layer">
+  <div class="gzone" id="gzone-left"><div class="gzone-hint">&#9664; HOLD<br>TO GO LEFT</div></div>
+  <div class="gzone" id="gzone-right"><div class="gzone-hint">HOLD TO &#9654;<br>GO RIGHT</div></div>
+</div>
+
+<div id="hud">
+  <div class="hud-group">
+    <div class="hud-item"><span class="hud-label">PLAYER</span><span class="hud-value">DARSHAN</span></div>
+    <div class="hud-item"><span class="hud-label">COINS</span><span class="hud-value" id="coinHud">&times;00</span></div>
+  </div>
+  <div class="hud-group">
+    <div class="hud-item"><span class="hud-label">WORLDS</span><span class="hud-value" id="worldHud">0/6</span></div>
+  </div>
+</div>
+
+<button id="sound-toggle" class="pixel"><span id="soundIcon">&#128266;</span> SOUND</button>
+
+<div id="intro">
+  <h1 class="intro-title">DARSHAN<br><span class="red">GOWDA M</span></h1>
+  <p class="intro-sub">A playable portfolio. Run right, jump on the<br>floating signs, and explore each world.</p>
+  <div class="controls-box">
+    <div class="control-hint desktop-only"><span class="key">&larr; &rarr;</span> MOVE</div>
+    <div class="control-hint desktop-only"><span class="key">SPACE</span> / <span class="key">&uarr;</span> JUMP</div>
+    <div class="control-hint mobile-only">HOLD <span class="key">LEFT</span> / <span class="key">RIGHT</span> SCREEN TO MOVE</div>
+    <div class="control-hint mobile-only">SWIPE <span class="key">UP</span> TO JUMP</div>
+    <div class="control-hint">JUMP AT A SIGN TO OPEN</div>
+  </div>
+  <div class="sound-pref">
+    <span>MUSIC &amp; FX</span>
+    <div class="toggle-switch on" id="soundSwitch"><div class="toggle-knob"></div></div>
+    <span id="soundState">ON</span>
+  </div>
+  <button class="start-btn pixel" id="startBtn">&#9654; PRESS START</button>
+</div>
+
+<div id="hint-toast"></div>
+<div id="restart-hint" class="pixel">PRESS [R] TO RESTART &middot; [M] MUTE &middot; [ESC] CLOSES PANELS</div>
+
+<div id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-world pixel" id="modalWorld"><span class="red">WORLD</span> 1-1</div>
+        <div class="modal-title pixel" id="modalTitle">TITLE</div>
+      </div>
+      <button class="modal-close pixel" id="modalClose">&#10005; CLOSE</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- WIN SCREEN -->
+<div id="win-screen">
+  <div class="win-stars">&#11088;&#11088;&#11088;</div>
+  <h1 class="win-title">YOU REACHED<br>THE <span class="red">CASTLE!</span></h1>
+  <p class="win-sub">All 6 worlds explored. Thanks for playing<br>through my portfolio &mdash; now let's build something together.</p>
+  <div class="win-stats">
+    <div class="win-stat"><div class="win-stat-num" id="winCoins">0</div><div class="win-stat-label">COINS</div></div>
+    <div class="win-stat"><div class="win-stat-num">6/6</div><div class="win-stat-label">WORLDS</div></div>
+  </div>
+  <div class="win-btns">
+    <a class="win-btn gold" href="mailto:darshangowda316@gmail.com">&#9993; EMAIL ME</a>
+    <a class="win-btn green" href="https://linkedin.com/in/DarshanGowdaM" target="_blank" rel="noopener">in LINKEDIN</a>
+    <button class="win-btn red" id="winReplay">&#8635; PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+const CONTENT = {
+  skills: { world: '1-1', title: 'SKILL TREE', html: `
+    <p class="m-intro">The tools and tech I work with day to day &mdash; systems programming, networking, and automation.</p>
+    <div class="m-skills">
+      <div class="m-skill-cat"><div class="m-skill-cat-head" style="background:#C84B00;">&#9889; LANGUAGES</div><div class="m-skill-cat-body">
+        <span class="m-skill-tag" style="color:#C84B00;">C</span><span class="m-skill-tag" style="color:#C84B00;">C++</span><span class="m-skill-tag" style="color:#2B5FCC;">C#</span><span class="m-skill-tag" style="color:#00A800;">Python</span></div></div>
+      <div class="m-skill-cat"><div class="m-skill-cat-head" style="background:#005C8A;">&#127760; NETWORKING</div><div class="m-skill-cat-body">
+        <span class="m-skill-tag" style="color:#005C8A;">TCP/IP</span><span class="m-skill-tag" style="color:#005C8A;">Sockets</span><span class="m-skill-tag" style="color:#005C8A;">OSI Model</span><span class="m-skill-tag" style="color:#005C8A;">IP Routing</span><span class="m-skill-tag" style="color:#005C8A;">NAT</span><span class="m-skill-tag" style="color:#005C8A;">Packet Analysis</span></div></div>
+      <div class="m-skill-cat"><div class="m-skill-cat-head" style="background:#006800;">&#128295; TOOLS</div><div class="m-skill-cat-body">
+        <span class="m-skill-tag" style="color:#006800;">GDB</span><span class="m-skill-tag" style="color:#006800;">Wireshark</span><span class="m-skill-tag" style="color:#006800;">CMake</span><span class="m-skill-tag" style="color:#006800;">Git</span><span class="m-skill-tag" style="color:#006800;">Jenkins</span><span class="m-skill-tag" style="color:#006800;">Valgrind</span><span class="m-skill-tag" style="color:#006800;">Perforce</span></div></div>
+      <div class="m-skill-cat"><div class="m-skill-cat-head" style="background:#5C3090;">&#129504; CONCEPTS</div><div class="m-skill-cat-body">
+        <span class="m-skill-tag" style="color:#5C3090;">Multithreading</span><span class="m-skill-tag" style="color:#5C3090;">Memory Mgmt</span><span class="m-skill-tag" style="color:#5C3090;">DSA</span><span class="m-skill-tag" style="color:#5C3090;">OOP</span><span class="m-skill-tag" style="color:#5C3090;">Binary Parsing</span><span class="m-skill-tag" style="color:#5C3090;">OS</span></div></div>
+      <div class="m-skill-cat"><div class="m-skill-cat-head" style="background:#7A5000;">&#128187; PLATFORMS</div><div class="m-skill-cat-body">
+        <span class="m-skill-tag" style="color:#7A5000;">Linux</span><span class="m-skill-tag" style="color:#7A5000;">Windows</span><span class="m-skill-tag" style="color:#7A5000;">macOS</span></div></div>
+    </div>` },
+  experience: { world: '2-1', title: 'EXPERIENCE LOG', html: `
+    <p class="m-intro">Three years in R&amp;D building systems software that ships.</p>
+    <div class="m-card"><div class="m-card-head" style="background:#006800;"><div class="m-card-title">Senior Engineer &mdash; R&amp;D</div><div class="m-card-date">AUG 2022 &ndash; NOW</div></div>
+      <div class="m-card-body"><div class="m-card-company">Anritsu India Pvt Ltd, Bangalore</div>
+        <ul class="m-list">
+          <li>Built and maintained systems-level tools, device simulators and internal software in C, C++, C# and Python for protocol validation and test environments.</li>
+          <li>Designed TCP/IP socket layers, binary message handlers and multithreaded workflows to improve test repeatability and cut manual effort across teams.</li>
+          <li>Debugged networking issues on Linux and Windows using Wireshark, packet capture analysis, GDB and code-level troubleshooting.</li>
+          <li>Supported customer on-site bring-up, end-to-end validation and issue resolution during system integration.</li>
+        </ul></div></div>` },
+  projects: { world: '3-1', title: 'PROJECT MAP', html: `
+    <p class="m-intro">Production tools that connect systems, replace hardware, and parse protocols.</p>
+    <div class="m-card"><div class="m-card-head" style="background:#2B5FCC;"><div class="m-card-title">M2M ADAPTER</div><div class="m-card-date">NOV'25&ndash;FEB'26</div></div>
+      <div class="m-card-body"><ul class="m-list">
+        <li>Shared library bridging a network test platform and customer device &mdash; real-time bidirectional data exchange via sockets and callback/API functions.</li>
+        <li>Separate protocol flows with multithreading for packet reception, decoding, uplink scheduling and response transmission.</li>
+        <li>Reusable adapter API with state-based processing and connection lifecycle management.</li>
+        <li>Supported live customer on-site bring-up and debug.</li></ul>
+        <div class="m-tech"><span>C</span><span>C++</span><span>TCP/IP</span><span>Multithreading</span><span>Shared Library</span></div></div></div>
+    <div class="m-card"><div class="m-card-head" style="background:#2B5FCC;"><div class="m-card-title">CROSS-PLATFORM DEVICE EMULATOR</div><div class="m-card-date">DEC'23&ndash;MAY'24</div></div>
+      <div class="m-card-body"><ul class="m-list">
+        <li>Software simulator fully replacing physical hardware in the lab &mdash; receives real packets, parses binary protocols, sends correct responses.</li>
+        <li>Config-driven simulation scenarios (loopback, packet-based flows) for consistent regression testing with zero manual setup.</li></ul>
+        <div class="m-tech"><span>C</span><span>TCP/IP</span><span>CMake</span><span>Linux</span><span>Binary Parsing</span></div></div></div>
+    <div class="m-card"><div class="m-card-head" style="background:#2B5FCC;"><div class="m-card-title">IQ CAPTURE TOOL</div><div class="m-card-date">JUL'23&ndash;OCT'23</div></div>
+      <div class="m-card-body"><ul class="m-list">
+        <li>Desktop app in C# WinForms automating data capture through trigger-based workflows, replacing a manual, error-prone process.</li>
+        <li>C++ backend for socket communication, binary protocol handling and memory management.</li>
+        <li>Parsed raw binary into structured output files for developer debugging.</li></ul>
+        <div class="m-tech"><span>C#</span><span>C++</span><span>TCP/IP</span><span>WinForms</span></div></div></div>
+    <div class="m-card"><div class="m-card-head" style="background:#2B5FCC;"><div class="m-card-title">PROTOCOL STACK &mdash; CU SIDE</div><div class="m-card-date">MAY'23&ndash;NOW</div></div>
+      <div class="m-card-body"><ul class="m-list">
+        <li>CU-side modules of a live network protocol stack &mdash; control plane and user plane data processing.</li>
+        <li>ZUC stream cipher integration into the data plane; gateway-based IP masquerading for seamless cross-segment traffic.</li>
+        <li>Validated throughput with iPerf (IPv4/IPv6); unit tests written before system-level testing.</li></ul>
+        <div class="m-tech"><span>C</span><span>C++</span><span>iPerf</span><span>Unit Testing</span></div></div></div>` },
+  automation: { world: '4-1', title: 'AUTOMATION TOOLS', html: `
+    <p class="m-intro">If it's repetitive, I automate it. Here's what hours became seconds.</p>
+    <div class="m-card"><div class="m-card-head" style="background:#C84B00;"><div class="m-card-title">SMIT AUTOMATION</div><div class="m-card-date">AUG&ndash;OCT 2022</div></div>
+      <div class="m-card-body"><ul class="m-list"><li>Intelligent controller launches log conversion, classifies input by format and source, handles retries, reorders to protocol order and generates test cases with summary reports &mdash; fully end to end.</li></ul>
+        <div class="m-impact">&#9889; PYTHON &middot; PyQt5 &middot; PyAutoGUI</div></div></div>
+    <div class="m-card"><div class="m-card-head" style="background:#C84B00;"><div class="m-card-title">PATCHWORK AUTOMATION</div><div class="m-card-date">OCT&ndash;NOV 2022</div></div>
+      <div class="m-card-body"><ul class="m-list"><li>Full patch + build pipeline reads fix data from JIRA and Excel, submits to Perforce, triggers correct Jenkins builds. Scheduler detects busy machines, queues jobs, retries failures and delivers a pass/fail/retry report.</li></ul>
+        <div class="m-impact">&#9889; PYTHON &middot; Jenkins &middot; Perforce</div></div></div>
+    <div class="m-card"><div class="m-card-head" style="background:#C84B00;"><div class="m-card-title">PROTOCOL LOG ANALYZER</div><div class="m-card-date">SEP&ndash;NOV 2024</div></div>
+      <div class="m-card-body"><ul class="m-list"><li>Compares message sequence, validates data and flags missing or unexpected messages against a verified baseline using difflib and custom Python logic. Structured pass/fail reports via pandas + openpyxl.</li></ul>
+        <div class="m-impact">&#128336; 30&ndash;40 MIN &rarr; 2&ndash;3 MIN / TEST</div></div></div>
+    <div class="m-card"><div class="m-card-head" style="background:#C84B00;"><div class="m-card-title">LOG-TO-CONFIG CONVERTER</div><div class="m-card-date">AUG&ndash;SEP 2024</div></div>
+      <div class="m-card-body"><ul class="m-list"><li>C tool reads raw logs, extracts fields and writes clean INI configs for the device emulator. Handles varied formats in batch &mdash; an 84-log backlog converted in minutes. Now used across multiple teams.</li></ul>
+        <div class="m-impact">&#128336; 1&ndash;2 HRS &rarr; 5&ndash;6 SEC / FILE</div></div></div>` },
+  about: { world: '5-1', title: 'ABOUT ME', html: `
+    <p class="m-intro">I'm a systems-focused software engineer who enjoys building things that actually work &mdash; protocol stacks, simulators, automation tools, anything that makes tedious manual work disappear. Three years at Anritsu in R&amp;D taught me what it means to debug at 2am with the customer on-site.</p>
+    <p class="m-intro">Outside work my instincts are the same: automating repetitive things, writing scripts for network tasks, and games that make you think. I studied Computer Science at Dayananda Sagar College of Engineering and I'm always picking up something new.</p>
+    <div class="m-meta">
+      <div class="m-meta-box"><div class="m-meta-label">LOCATION</div><div class="m-meta-val">Bangalore, India</div></div>
+      <div class="m-meta-box"><div class="m-meta-label">EXPERIENCE</div><div class="m-meta-val">3+ Years</div></div>
+      <div class="m-meta-box"><div class="m-meta-label">DEGREE</div><div class="m-meta-val">B.E. CS &middot; 8.4 GPA</div></div>
+      <div class="m-meta-box"><div class="m-meta-label">AWARD</div><div class="m-meta-val">Best Project &mdash; CNN Biometrics '22</div></div>
+    </div>` },
+  contact: { world: '6-1', title: 'CONTACT', html: `
+    <p class="m-intro">Made it to the castle! Ready to build something fast, reliable and worth deploying? Let's talk.</p>
+    <div class="m-contact">
+      <a href="mailto:darshangowda316@gmail.com">&#9993; EMAIL</a>
+      <a href="https://linkedin.com/in/DarshanGowdaM" target="_blank" rel="noopener">in LINKEDIN</a>
+      <a href="https://github.com/DarshanGowdaM" target="_blank" rel="noopener">&#8997; GITHUB</a>
+      <a href="tel:+917259722045">&#9742; +91 72597 22045</a>
+    </div>` }
+};
+
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+const VIEW_H = 360;
+let VIEW_W = 640, scale = 1, dpr = window.devicePixelRatio || 1;
+const GROUND_Y = VIEW_H - 56;
+// snappier feel:
+const GRAVITY = 0.62, MOVE_SPEED = 3.0, JUMP_VELOCITY = -11.5;
+let cameraX = 0;
+const player = { x: 40, y: GROUND_Y - 30, w: 22, h: 30, vx: 0, vy: 0, onGround: false, facing: 1, walkFrame: 0, walkTimer: 0 };
+const keys = { left: false, right: false, jump: false };
+let jumpHeld = false;
+const signs = [
+  { x: 240,  label: 'SKILLS',   key: 'skills',     color: '#C84B00' },
+  { x: 540,  label: 'EXP',      key: 'experience', color: '#006800' },
+  { x: 840,  label: 'PROJECTS', key: 'projects',   color: '#2B5FCC' },
+  { x: 1140, label: 'AUTO',     key: 'automation', color: '#C84B00' },
+  { x: 1440, label: 'ABOUT',    key: 'about',      color: '#5C3090' },
+  { x: 1760, label: 'CONTACT',  key: 'contact',    color: '#F8B800' }
+];
+const WORLD_END = 1980;
+const qblocks = [
+  { x: 180, y: GROUND_Y - 110, hit: false }, { x: 420, y: GROUND_Y - 110, hit: false },
+  { x: 700, y: GROUND_Y - 130, hit: false }, { x: 980, y: GROUND_Y - 110, hit: false },
+  { x: 1280, y: GROUND_Y - 130, hit: false }, { x: 1600, y: GROUND_Y - 110, hit: false }
+];
+const coins = [];
+for (let i = 0; i < 24; i++) coins.push({ x: 120 + i * 78 + (Math.random()*30), y: GROUND_Y - 60 - Math.random()*90, collected: false, bob: Math.random() * Math.PI * 2 });
+const clouds = [];
+for (let i = 0; i < 10; i++) clouds.push({ x: i*230 + Math.random()*100, y: 40 + Math.random()*80, s: 0.6 + Math.random()*0.6 });
+const bushes = [];
+for (let i = 0; i < 14; i++) bushes.push({ x: i*160 + Math.random()*80, s: 0.7 + Math.random()*0.7 });
+const hills = [];
+for (let i = 0; i < 8; i++) hills.push({ x: i*320 + Math.random()*100, s: 0.9 + Math.random()*0.5 });
+const pipes = [ {x: 360}, {x: 1020}, {x: 1680} ];
+let coinCount = 0, worldsVisited = new Set(), gameStarted = false, modalOpen = false, gameWon = false;
+let floatTexts = [], nearSign = null, lastHintSign = null;
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  dpr = window.devicePixelRatio || 1;
+  scale = h / VIEW_H;
+  VIEW_W = w / scale;
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function px(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(Math.floor(x), Math.floor(y), Math.ceil(w), Math.ceil(h)); }
+function drawCloud(x, y, s) {
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  ctx.fillRect(x, y, 30*s, 14*s); ctx.fillRect(x+8*s, y-7*s, 18*s, 10*s);
+  ctx.fillRect(x-6*s, y+4*s, 12*s, 8*s); ctx.fillRect(x+26*s, y+3*s, 12*s, 9*s);
+}
+function drawHill(x, s) {
+  const baseY = GROUND_Y;
+  ctx.fillStyle = '#3CA800';
+  ctx.beginPath(); ctx.moveTo(x - 50*s, baseY);
+  ctx.quadraticCurveTo(x, baseY - 70*s, x + 50*s, baseY); ctx.fill();
+}
+function drawBush(x, s) {
+  const y = GROUND_Y - 14*s;
+  ctx.fillStyle = '#00A800';
+  ctx.fillRect(x, y, 24*s, 14*s); ctx.fillRect(x+6*s, y-8*s, 14*s, 10*s);
+  ctx.fillRect(x-8*s, y+3*s, 12*s, 11*s); ctx.fillRect(x+22*s, y+2*s, 12*s, 12*s);
+}
+function drawPipe(x) {
+  const topY = GROUND_Y - 60;
+  px(x-4, topY, 56, 16, '#00A800'); px(x, topY+16, 48, 50, '#00C000');
+  px(x-4, topY, 8, 16, '#00E000'); px(x, topY+16, 8, 50, '#00E000');
+  px(x+40, topY, 8, 16, '#006800'); px(x+40, topY+16, 8, 50, '#006800');
+  ctx.strokeStyle = '#003800'; ctx.lineWidth = 2;
+  ctx.strokeRect(x-4, topY, 56, 16); ctx.strokeRect(x, topY+16, 48, 50);
+}
+function drawQBlock(b) {
+  const x = b.x, y = b.y;
+  if (b.hit) {
+    px(x, y, 28, 28, '#9a6324'); px(x+2, y+2, 24, 24, '#b87333');
+    ctx.strokeStyle = '#5a3010'; ctx.lineWidth = 2; ctx.strokeRect(x, y, 28, 28);
+  } else {
+    px(x, y, 28, 28, '#F8B800'); px(x+2, y+2, 24, 24, '#FFD000');
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.strokeRect(x, y, 28, 28);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('?', x+14, y+21); ctx.textAlign = 'left';
+  }
+}
+function drawCoin(c) {
+  if (c.collected) return;
+  const bob = Math.sin(Date.now()/250 + c.bob) * 3;
+  const y = c.y + bob;
+  const t = (Date.now()/180 + c.bob);
+  const sx = Math.abs(Math.cos(t));
+  const w = 12 * sx + 2;
+  ctx.fillStyle = '#F8B800'; ctx.fillRect(c.x + (12-w)/2, y, w, 14);
+  ctx.fillStyle = '#FFE060'; ctx.fillRect(c.x + (12-w)/2 + 1, y+1, Math.max(w-2,1), 12);
+  ctx.strokeStyle = '#C88000'; ctx.lineWidth = 1; ctx.strokeRect(c.x + (12-w)/2, y, w, 14);
+}
+function drawSign(s) {
+  const postX = s.x + 12, signY = GROUND_Y - 92, isNear = nearSign === s;
+  px(postX, signY+38, 6, 54, '#8B5A2B');
+  const boardW = 64, boardH = 40, bx = s.x - 8;
+  if (isNear) { ctx.fillStyle = 'rgba(248,184,0,0.4)'; ctx.fillRect(bx-6, signY-6, boardW+12, boardH+12); }
+  px(bx, signY, boardW, boardH, '#fff');
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeRect(bx, signY, boardW, boardH);
+  px(bx, signY, boardW, 12, s.color);
+  if (worldsVisited.has(s.key)) { ctx.fillStyle = '#00A800'; ctx.font = 'bold 10px monospace'; ctx.fillText('\u2713', bx+boardW-14, signY+10); }
+  ctx.fillStyle = '#000'; ctx.font = '8px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+  ctx.fillText(s.label, bx + boardW/2, signY+28); ctx.textAlign = 'left';
+  if (isNear) {
+    const ay = signY - 14 + Math.sin(Date.now()/200)*3;
+    ctx.fillStyle = '#F8B800'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('\u25BC', bx+boardW/2, ay); ctx.textAlign = 'left';
+  }
+}
+function drawMario(x, y, facing, frame, jumping) {
+  ctx.save();
+  ctx.translate(Math.floor(x), Math.floor(y));
+  if (facing < 0) { ctx.translate(player.w, 0); ctx.scale(-1, 1); }
+  const u = player.w / 12;
+  function p(gx, gy, gw, gh, color) { ctx.fillStyle = color; ctx.fillRect(gx*u, gy*(player.h/13), Math.ceil(gw*u), Math.ceil(gh*(player.h/13))); }
+  const RED = '#E40000', SKIN = '#FFA060', BLUE = '#2860C8', BROWN = '#7A3000', YEL='#FFD700', DARK='#000';
+  p(3,0,6,1,RED); p(2,1,8,1,RED);
+  p(2,2,3,1,SKIN); p(2,3,8,2,SKIN);
+  p(4,3,1,1,DARK); p(8,2,2,2,BROWN);
+  p(2,4,2,1,BROWN); p(5,4,3,1,BROWN);
+  p(2,5,8,1,RED); p(1,6,10,2,RED);
+  p(3,6,6,2,BLUE); p(4,6,1,1,YEL); p(7,6,1,1,YEL);
+  p(0,5,1,2,RED); p(11,5,1,2,RED);
+  if (jumping) { p(3,8,3,3,BLUE); p(6,8,3,3,BLUE); p(2,11,4,2,BROWN); p(6,11,4,2,BROWN); }
+  else if (frame === 0) { p(3,8,3,3,BLUE); p(6,8,3,3,BLUE); p(2,11,4,1,BROWN); p(7,11,4,1,BROWN); }
+  else { p(4,8,3,3,BLUE); p(5,8,3,3,BLUE); p(3,11,4,1,BROWN); p(6,11,4,1,BROWN); }
+  ctx.restore();
+}
+function addFloatText(x, y, txt) { floatTexts.push({ x, y, txt, life: 1 }); }
+
+function update() {
+  if (!gameStarted || modalOpen || gameWon) return;
+  if (keys.left)  { player.vx = -MOVE_SPEED; player.facing = -1; }
+  else if (keys.right) { player.vx = MOVE_SPEED; player.facing = 1; }
+  else player.vx = 0;
+  if (keys.jump && player.onGround) { player.vy = JUMP_VELOCITY; player.onGround = false; }
+  if (!jumpHeld && player.vy < -4.5) player.vy = -4.5;
+  player.vy += GRAVITY;
+  if (player.vy > 14) player.vy = 14;
+  player.x += player.vx; player.y += player.vy;
+  if (player.x < 0) player.x = 0;
+  if (player.x > WORLD_END - player.w) player.x = WORLD_END - player.w;
+  if (player.y + player.h >= GROUND_Y) { player.y = GROUND_Y - player.h; player.vy = 0; player.onGround = true; }
+  qblocks.forEach(b => {
+    if (player.x + player.w > b.x && player.x < b.x + 28) {
+      if (player.vy < 0 && player.y <= b.y + 28 && player.y >= b.y + 14) {
+        player.y = b.y + 28; player.vy = 1;
+        if (!b.hit) { b.hit = true; coinCount++; updateHud(); addFloatText(b.x + 14, b.y - 10, '+1'); playCoinSound(); }
+      }
+      if (player.vy >= 0 && player.y + player.h <= b.y + 14 && player.y + player.h >= b.y) {
+        player.y = b.y - player.h; player.vy = 0; player.onGround = true;
+      }
+    }
+  });
+  coins.forEach(c => {
+    if (!c.collected && player.x + player.w > c.x && player.x < c.x + 14 && player.y + player.h > c.y && player.y < c.y + 16) {
+      c.collected = true; coinCount++; updateHud(); addFloatText(c.x + 6, c.y - 4, '+1'); playCoinSound();
+    }
+  });
+  if (Math.abs(player.vx) > 0 && player.onGround) {
+    player.walkTimer++;
+    if (player.walkTimer > 5) { player.walkFrame = 1 - player.walkFrame; player.walkTimer = 0; }
+  } else player.walkFrame = 0;
+  const targetCam = player.x - VIEW_W * 0.35;
+  cameraX += (targetCam - cameraX) * 0.12;
+  if (cameraX < 0) cameraX = 0;
+  if (cameraX > WORLD_END - VIEW_W) cameraX = WORLD_END - VIEW_W;
+  nearSign = null;
+  signs.forEach(s => {
+    const cx = s.x + 24, pcx = player.x + player.w/2;
+    if (Math.abs(pcx - cx) < 34 && player.onGround) nearSign = s;
+  });
+  if (nearSign && nearSign !== lastHintSign) { showHint('\u25B2 JUMP to open ' + nearSign.label); lastHintSign = nearSign; }
+  if (!nearSign) lastHintSign = null;
+  floatTexts.forEach(f => { f.y -= 0.8; f.life -= 0.02; });
+  floatTexts = floatTexts.filter(f => f.life > 0);
+}
+
+function render() {
+  const g = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+  g.addColorStop(0, '#5C94FC'); g.addColorStop(1, '#8FB8FF');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  clouds.forEach(c => { drawCloud(c.x - cameraX * 0.3, c.y, c.s); });
+  hills.forEach(h => drawHill(h.x - cameraX*0.5, h.s));
+  ctx.save();
+  ctx.translate(-cameraX, 0);
+  bushes.forEach(b => drawBush(b.x, b.s));
+  pipes.forEach(p => drawPipe(p.x));
+  qblocks.forEach(drawQBlock);
+  coins.forEach(drawCoin);
+  signs.forEach(drawSign);
+  drawFlag(WORLD_END - 80);
+  drawMario(player.x, player.y, player.facing, player.walkFrame, !player.onGround);
+  floatTexts.forEach(f => {
+    ctx.fillStyle = `rgba(255,255,255,${f.life})`;
+    ctx.font = 'bold 11px "Press Start 2P", monospace'; ctx.textAlign = 'center';
+    ctx.fillText(f.txt, f.x, f.y); ctx.textAlign = 'left';
+  });
+  ctx.restore();
+  drawGround();
+}
+function drawGround() {
+  const gy = GROUND_Y;
+  ctx.fillStyle = '#E8A040'; ctx.fillRect(0, gy, VIEW_W, VIEW_H - gy);
+  ctx.fillStyle = '#000'; ctx.fillRect(0, gy, VIEW_W, 4);
+  const tile = 32, offset = -(cameraX % tile);
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 2;
+  for (let x = offset; x < VIEW_W + tile; x += tile) {
+    ctx.beginPath(); ctx.moveTo(x, gy + 4); ctx.lineTo(x, VIEW_H); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(0, gy + 22); ctx.lineTo(VIEW_W, gy + 22); ctx.stroke();
+  ctx.fillStyle = 'rgba(120,60,20,0.4)'; ctx.fillRect(0, VIEW_H - 16, VIEW_W, 16);
+}
+function drawFlag(x) {
+  const baseY = GROUND_Y;
+  px(x, baseY - 130, 4, 130, '#cfcfcf'); px(x, baseY - 130, 2, 130, '#fff');
+  ctx.fillStyle = '#00A800'; ctx.beginPath(); ctx.arc(x+2, baseY-132, 5, 0, Math.PI*2); ctx.fill();
+  const fy = baseY - 124 + Math.sin(Date.now()/300)*2;
+  ctx.fillStyle = '#E40000'; ctx.beginPath();
+  ctx.moveTo(x+4, fy); ctx.lineTo(x+34, fy+8); ctx.lineTo(x+4, fy+16); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '7px "Press Start 2P", monospace'; ctx.fillText('\u2605', x+12, fy+11);
+}
+function updateHud() {
+  document.getElementById('coinHud').textContent = '\u00D7' + String(coinCount).padStart(2,'0');
+  document.getElementById('worldHud').textContent = worldsVisited.size + '/6';
+  if (worldsVisited.size === 6 && !gameWon) triggerWin();
+}
+
+/* ============ AUDIO ENGINE ============ */
+let audioCtx = null;
+let soundOn = true;
+let musicGain = null;
+let musicTimer = null;
+let musicStep = 0;
+
+function initAudio() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      musicGain = audioCtx.createGain();
+      musicGain.gain.value = 0.16;
+      musicGain.connect(audioCtx.destination);
+    } catch(e){}
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+function beep(freq, dur, type='square', vol=0.08) {
+  if (!audioCtx || !soundOn) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq; g.gain.value = vol;
+  o.connect(g); g.connect(audioCtx.destination); o.start();
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+  o.stop(audioCtx.currentTime + dur);
+}
+function playCoinSound() { beep(988, 0.08); setTimeout(()=>beep(1319,0.12),60); }
+function playJumpSound() { beep(523, 0.1, 'square', 0.06); setTimeout(()=>beep(784,0.08),50); }
+function playOpenSound() { beep(659,0.08); setTimeout(()=>beep(880,0.08),70); setTimeout(()=>beep(1047,0.14),140); }
+function playWinJingle() {
+  if (!soundOn) return;
+  const notes = [523,659,784,1047,784,1047,1319];
+  notes.forEach((n,i)=> setTimeout(()=>beep(n,0.22,'square',0.1), i*160));
+}
+
+/* Background music: a cheerful looping 8-bit melody (original, public-domain scale pattern) */
+const MELODY = [
+  // freq, beats   (a bouncy major-key overworld-style loop)
+  [659,1],[659,1],[0,1],[659,1],[0,1],[523,1],[659,1],[0,1],
+  [784,1],[0,2],[392,1],[0,2],
+  [523,1],[0,1],[392,1],[0,1],[330,1],[0,1],[440,1],[0,1],
+  [494,1],[466,1],[440,1],[0,1],[392,1],[659,1],[784,1],[880,1],
+  [698,1],[784,1],[0,1],[659,1],[0,1],[523,1],[587,1],[494,1],[0,1]
+];
+const BASS = [
+  [131,2],[165,2],[196,2],[131,2],[165,2],[196,2],[147,2],[196,2],
+  [131,2],[165,2],[196,2],[131,2],[165,2],[196,2],[147,2],[196,2],[131,2],[0,1]
+];
+let melodyIdx = 0, bassIdx = 0;
+const BEAT_MS = 150;
+
+function musicTick() {
+  if (!audioCtx || !soundOn) return;
+  // melody voice
+  const m = MELODY[melodyIdx % MELODY.length];
+  if (m[0] > 0) {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'square'; o.frequency.value = m[0];
+    g.gain.value = 0.0001;
+    o.connect(g); g.connect(musicGain); o.start();
+    g.gain.linearRampToValueAtTime(0.09, audioCtx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + m[1]*BEAT_MS/1000 * 0.9);
+    o.stop(audioCtx.currentTime + m[1]*BEAT_MS/1000);
+  }
+  // bass voice
+  const b = BASS[bassIdx % BASS.length];
+  if (b[0] > 0) {
+    const o2 = audioCtx.createOscillator(), g2 = audioCtx.createGain();
+    o2.type = 'triangle'; o2.frequency.value = b[0];
+    g2.gain.value = 0.0001;
+    o2.connect(g2); g2.connect(musicGain); o2.start();
+    g2.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + 0.02);
+    g2.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + b[1]*BEAT_MS/1000 * 0.95);
+    o2.stop(audioCtx.currentTime + b[1]*BEAT_MS/1000);
+  }
+  const dur = m[1] * BEAT_MS;
+  melodyIdx++;
+  // advance bass roughly in step
+  if (melodyIdx % 2 === 0) bassIdx++;
+  musicTimer = setTimeout(musicTick, dur);
+}
+function startMusic() {
+  if (!audioCtx || !soundOn) return;
+  if (musicTimer) return;
+  melodyIdx = 0; bassIdx = 0;
+  musicTick();
+}
+function stopMusic() { if (musicTimer) { clearTimeout(musicTimer); musicTimer = null; } }
+
+function setSound(on) {
+  soundOn = on;
+  // update intro switch
+  const sw = document.getElementById('soundSwitch');
+  const st = document.getElementById('soundState');
+  if (sw) sw.classList.toggle('on', on);
+  if (st) st.textContent = on ? 'ON' : 'OFF';
+  // update in-game button
+  document.getElementById('soundIcon').innerHTML = on ? '&#128266;' : '&#128263;';
+  if (on) { initAudio(); if (gameStarted && !gameWon) startMusic(); }
+  else stopMusic();
+}
+
+/* ============ HINT ============ */
+let hintTimer = null;
+function showHint(text) {
+  const t = document.getElementById('hint-toast');
+  t.textContent = text; t.classList.add('show');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ============ MODAL ============ */
+function openSection(key) {
+  const data = CONTENT[key]; if (!data) return;
+  document.getElementById('modalWorld').innerHTML = '<span class="red">WORLD</span> ' + data.world;
+  document.getElementById('modalTitle').textContent = data.title;
+  document.getElementById('modalBody').innerHTML = data.html;
+  document.getElementById('modal-overlay').classList.add('active');
+  document.querySelector('.modal-box').scrollTop = 0;
+  modalOpen = true; worldsVisited.add(key); updateHud(); playOpenSound();
+  keys.left = keys.right = keys.jump = false;
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('active'); modalOpen = false; }
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target.id === 'modal-overlay') closeModal(); });
+function tryOpenSign() { if (nearSign) openSection(nearSign.key); }
+
+/* ============ WIN ============ */
+function triggerWin() {
+  gameWon = true;
+  stopMusic();
+  document.getElementById('winCoins').textContent = coinCount;
+  setTimeout(() => {
+    document.getElementById('win-screen').classList.add('active');
+    playWinJingle();
+  }, 500);
+}
+document.getElementById('winReplay').addEventListener('click', () => {
+  document.getElementById('win-screen').classList.remove('active');
+  fullReset();
+});
+
+/* ============ INPUT: KEYBOARD ============ */
+window.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') { keys.left = true; e.preventDefault(); }
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') { keys.right = true; e.preventDefault(); }
+  if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+    e.preventDefault();
+    if (modalOpen || gameWon) return;
+    if (nearSign && player.onGround) { tryOpenSign(); return; }
+    if (!jumpHeld && player.onGround) playJumpSound();
+    keys.jump = true; jumpHeld = true;
+  }
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'r' || e.key === 'R') restartGame();
+  if (e.key === 'm' || e.key === 'M') setSound(!soundOn);
+});
+window.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+  if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') { keys.jump = false; jumpHeld = false; }
+});
+
+/* ============ INPUT: TOUCH GESTURES ============ */
+/* Left half hold = move left, Right half hold = move right, swipe up anywhere = jump */
+const gestureLayer = document.getElementById('gesture-layer');
+const zoneLeft = document.getElementById('gzone-left');
+const zoneRight = document.getElementById('gzone-right');
+const isTouch = window.matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window);
+
+// track touches: each touch belongs to a side and tracks swipe for jump
+const activeTouches = {};
+
+function doJump() {
+  if (modalOpen || gameWon) return;
+  if (nearSign && player.onGround) { tryOpenSign(); return; }
+  if (player.onGround) { playJumpSound(); keys.jump = true; jumpHeld = true;
+    // auto-release jump shortly after (swipe = tap-jump)
+    setTimeout(() => { keys.jump = false; jumpHeld = false; }, 180);
+  }
+}
+
+function handleTouchStart(e) {
+  if (!gameStarted) return;
+  for (const t of e.changedTouches) {
+    const half = t.clientX < window.innerWidth / 2 ? 'left' : 'right';
+    activeTouches[t.identifier] = { startX: t.clientX, startY: t.clientY, lastY: t.clientY, half, jumped: false, moved: false };
+    if (half === 'left') { keys.left = true; keys.right = false; zoneLeft.classList.add('touching'); }
+    else { keys.right = true; keys.left = false; zoneRight.classList.add('touching'); }
+  }
+  e.preventDefault();
+}
+function handleTouchMove(e) {
+  if (!gameStarted) return;
+  for (const t of e.changedTouches) {
+    const info = activeTouches[t.identifier];
+    if (!info) continue;
+    const dy = info.startY - t.clientY;       // positive = swipe up
+    const dx = Math.abs(t.clientX - info.startX);
+    // swipe up to jump (threshold ~36px, more vertical than horizontal)
+    if (!info.jumped && dy > 36 && dy > dx) {
+      info.jumped = true;
+      doJump();
+    }
+    info.lastY = t.clientY;
+  }
+  e.preventDefault();
+}
+function endTouch(t) {
+  const info = activeTouches[t.identifier];
+  if (!info) return;
+  delete activeTouches[t.identifier];
+  // recompute movement based on any remaining touches
+  let stillLeft = false, stillRight = false;
+  for (const id in activeTouches) {
+    if (activeTouches[id].half === 'left') stillLeft = true;
+    else stillRight = true;
+  }
+  keys.left = stillLeft; keys.right = stillRight;
+  if (!stillLeft) zoneLeft.classList.remove('touching');
+  if (!stillRight) zoneRight.classList.remove('touching');
+}
+function handleTouchEnd(e) {
+  for (const t of e.changedTouches) endTouch(t);
+  e.preventDefault();
+}
+
+if (isTouch) {
+  gestureLayer.classList.add('active');
+  gestureLayer.addEventListener('touchstart', handleTouchStart, {passive:false});
+  gestureLayer.addEventListener('touchmove', handleTouchMove, {passive:false});
+  gestureLayer.addEventListener('touchend', handleTouchEnd, {passive:false});
+  gestureLayer.addEventListener('touchcancel', handleTouchEnd, {passive:false});
+}
+
+/* ============ SOUND TOGGLES ============ */
+document.getElementById('soundSwitch').addEventListener('click', () => setSound(!soundOn));
+document.getElementById('sound-toggle').addEventListener('click', () => setSound(!soundOn));
+
+/* ============ START / RESET ============ */
+function startGame() {
+  initAudio();
+  document.getElementById('intro').classList.add('hidden');
+  document.getElementById('sound-toggle').classList.add('show');
+  gameStarted = true;
+  if (soundOn) startMusic();
+  // hide gesture hints after a moment
+  setTimeout(() => {
+    document.querySelectorAll('.gzone-hint').forEach(h => h.style.opacity = '0');
+  }, 4000);
+  setTimeout(() => showHint(isTouch ? 'Hold right side to move \u2192' : 'Run right \u2192 toward the signs!'), 600);
+}
+document.getElementById('startBtn').addEventListener('click', startGame);
+
+function restartGame() {
+  player.x = 40; player.y = GROUND_Y - player.h; player.vx = 0; player.vy = 0; cameraX = 0;
+  closeModal();
+  document.querySelectorAll('.gzone-hint').forEach(h => h.style.opacity = '1');
+  setTimeout(() => document.querySelectorAll('.gzone-hint').forEach(h => h.style.opacity = '0'), 3000);
+  showHint('Restarted! Explore again \uD83C\uDF44');
+}
+function fullReset() {
+  player.x = 40; player.y = GROUND_Y - player.h; player.vx = 0; player.vy = 0; cameraX = 0;
+  coinCount = 0; worldsVisited = new Set(); gameWon = false;
+  qblocks.forEach(b => b.hit = false);
+  coins.forEach(c => c.collected = false);
+  updateHud();
+  if (soundOn) { startMusic(); }
+  showHint('New game! \uD83C\uDF44');
+}
+
+function loop() { update(); render(); requestAnimationFrame(loop); }
+loop();
+updateHud();
+</script>
+</body>
+</html>
