@@ -199,7 +199,7 @@
 <script>
 const CONTENT = {
   skills: { world: '1-1', title: 'SKILL TREE', html: `
-    <p class="m-intro">The tools and tech I work with day to day &mdash; systems programming, networking, and automation.</p>
+    <p class="m-intro">The tools and tech I work with day to day systems programming, networking and automation.</p>
     <div class="m-skills">
       <div class="m-skill-cat"><div class="m-skill-cat-head" style="background:#C84B00;">&#9889; LANGUAGES</div><div class="m-skill-cat-body">
         <span class="m-skill-tag" style="color:#C84B00;">C</span><span class="m-skill-tag" style="color:#C84B00;">C++</span><span class="m-skill-tag" style="color:#2B5FCC;">C#</span><span class="m-skill-tag" style="color:#00A800;">Python</span></div></div>
@@ -226,14 +226,14 @@ const CONTENT = {
     <p class="m-intro">Production tools that connect systems, replace hardware, and parse protocols.</p>
     <div class="m-card"><div class="m-card-head" style="background:#2B5FCC;"><div class="m-card-title">M2M ADAPTER</div><div class="m-card-date">NOV'25&ndash;FEB'26</div></div>
       <div class="m-card-body"><ul class="m-list">
-        <li>Shared library bridging a network test platform and customer device &mdash; real-time bidirectional data exchange via sockets and callback/API functions.</li>
+        <li>Shared library bridging a network test platform and customer device real-time bidirectional data exchange via sockets and callback/API functions.</li>
         <li>Separate protocol flows with multithreading for packet reception, decoding, uplink scheduling and response transmission.</li>
         <li>Reusable adapter API with state-based processing and connection lifecycle management.</li>
         <li>Supported live customer on-site bring-up and debug.</li></ul>
         <div class="m-tech"><span>C</span><span>C++</span><span>TCP/IP</span><span>Multithreading</span><span>Shared Library</span></div></div></div>
     <div class="m-card"><div class="m-card-head" style="background:#2B5FCC;"><div class="m-card-title">CROSS-PLATFORM DEVICE EMULATOR</div><div class="m-card-date">DEC'23&ndash;MAY'24</div></div>
       <div class="m-card-body"><ul class="m-list">
-        <li>Software simulator fully replacing physical hardware in the lab &mdash; receives real packets, parses binary protocols, sends correct responses.</li>
+        <li>Software simulator fully replacing physical hardware in the lab receives real packets, parses binary protocols, sends correct responses.</li>
         <li>Config-driven simulation scenarios (loopback, packet-based flows) for consistent regression testing with zero manual setup.</li></ul>
         <div class="m-tech"><span>C</span><span>TCP/IP</span><span>CMake</span><span>Linux</span><span>Binary Parsing</span></div></div></div>
     <div class="m-card"><div class="m-card-head" style="background:#2B5FCC;"><div class="m-card-title">IQ CAPTURE TOOL</div><div class="m-card-date">JUL'23&ndash;OCT'23</div></div>
@@ -244,14 +244,14 @@ const CONTENT = {
         <div class="m-tech"><span>C#</span><span>C++</span><span>TCP/IP</span><span>WinForms</span></div></div></div>
     <div class="m-card"><div class="m-card-head" style="background:#2B5FCC;"><div class="m-card-title">PROTOCOL STACK &mdash; CU SIDE</div><div class="m-card-date">MAY'23&ndash;NOW</div></div>
       <div class="m-card-body"><ul class="m-list">
-        <li>CU-side modules of a live network protocol stack &mdash; control plane and user plane data processing.</li>
-        <li>ZUC stream cipher integration into the data plane; gateway-based IP masquerading for seamless cross-segment traffic.</li>
-        <li>Validated throughput with iPerf (IPv4/IPv6); unit tests written before system-level testing.</li></ul>
+        <li>CU-side modules of a live network protocol stack, control plane and user plane data processing.</li>
+        <li>ZUC stream cipher integration into the data plane, gateway based IP masquerading for seamless cross-segment traffic.</li>
+        <li>Validated throughput with iPerf (IPv4/IPv6), unit tests written before system-level testing.</li></ul>
         <div class="m-tech"><span>C</span><span>C++</span><span>iPerf</span><span>Unit Testing</span></div></div></div>` },
   automation: { world: '4-1', title: 'AUTOMATION TOOLS', html: `
     <p class="m-intro">If it's repetitive, I automate it. Here's what hours became seconds.</p>
     <div class="m-card"><div class="m-card-head" style="background:#C84B00;"><div class="m-card-title">SMIT AUTOMATION</div><div class="m-card-date">AUG&ndash;OCT 2022</div></div>
-      <div class="m-card-body"><ul class="m-list"><li>Intelligent controller launches log conversion, classifies input by format and source, handles retries, reorders to protocol order and generates test cases with summary reports &mdash; fully end to end.</li></ul>
+      <div class="m-card-body"><ul class="m-list"><li>Intelligent controller launches log conversion, classifies input by format and source, handles retries, reorders to protocol order and generates test cases with summary reports fully end to end.</li></ul>
         <div class="m-impact">&#9889; PYTHON &middot; PyQt5 &middot; PyAutoGUI</div></div></div>
     <div class="m-card"><div class="m-card-head" style="background:#C84B00;"><div class="m-card-title">PATCHWORK AUTOMATION</div><div class="m-card-date">OCT&ndash;NOV 2022</div></div>
       <div class="m-card-body"><ul class="m-list"><li>Full patch + build pipeline reads fix data from JIRA and Excel, submits to Perforce, triggers correct Jenkins builds. Scheduler detects busy machines, queues jobs, retries failures and delivers a pass/fail/retry report.</li></ul>
@@ -260,16 +260,16 @@ const CONTENT = {
       <div class="m-card-body"><ul class="m-list"><li>Compares message sequence, validates data and flags missing or unexpected messages against a verified baseline using difflib and custom Python logic. Structured pass/fail reports via pandas + openpyxl.</li></ul>
         <div class="m-impact">&#128336; 30&ndash;40 MIN &rarr; 2&ndash;3 MIN / TEST</div></div></div>
     <div class="m-card"><div class="m-card-head" style="background:#C84B00;"><div class="m-card-title">LOG-TO-CONFIG CONVERTER</div><div class="m-card-date">AUG&ndash;SEP 2024</div></div>
-      <div class="m-card-body"><ul class="m-list"><li>C tool reads raw logs, extracts fields and writes clean INI configs for the device emulator. Handles varied formats in batch &mdash; an 84-log backlog converted in minutes. Now used across multiple teams.</li></ul>
+      <div class="m-card-body"><ul class="m-list"><li>C tool reads raw logs, extracts fields and writes clean INI configs for the device emulator. Handles varied formats in batch an 84 log backlog converted in minutes. Now used across multiple teams.</li></ul>
         <div class="m-impact">&#128336; 1&ndash;2 HRS &rarr; 5&ndash;6 SEC / FILE</div></div></div>` },
   about: { world: '5-1', title: 'ABOUT ME', html: `
-    <p class="m-intro">I'm a systems-focused software engineer who enjoys building things that actually work &mdash; protocol stacks, simulators, automation tools, anything that makes tedious manual work disappear. Three years at Anritsu in R&amp;D taught me what it means to debug at 2am with the customer on-site.</p>
-    <p class="m-intro">Outside work my instincts are the same: automating repetitive things, writing scripts for network tasks, and games that make you think. I studied Computer Science at Dayananda Sagar College of Engineering and I'm always picking up something new.</p>
+    <p class="m-intro">I'm a systems-focused software engineer who enjoys building things that actually work protocol stacks, simulators, automation tools, anything that makes tedious manual work disappear. Three years at Anritsu in R&amp;D taught me what it means to debug at 2am with the customer on-site.</p>
+    <p class="m-intro">Outside work my instincts are the same: automating repetitive things, writing scripts for network tasks and games that make you think. I studied Computer Science at Dayananda Sagar College of Engineering and I'm always picking up something new.</p>
     <div class="m-meta">
       <div class="m-meta-box"><div class="m-meta-label">LOCATION</div><div class="m-meta-val">Bangalore, India</div></div>
       <div class="m-meta-box"><div class="m-meta-label">EXPERIENCE</div><div class="m-meta-val">3+ Years</div></div>
       <div class="m-meta-box"><div class="m-meta-label">DEGREE</div><div class="m-meta-val">B.E. CS &middot; 8.4 GPA</div></div>
-      <div class="m-meta-box"><div class="m-meta-label">AWARD</div><div class="m-meta-val">Best Project &mdash; CNN Biometrics '22</div></div>
+      <div class="m-meta-box"><div class="m-meta-label">AWARD</div><div class="m-meta-val">Best Project - CNN Biometrics '22</div></div>
     </div>` },
   contact: { world: '6-1', title: 'CONTACT', html: `
     <p class="m-intro">Made it to the castle! Ready to build something fast, reliable and worth deploying? Let's talk.</p>
